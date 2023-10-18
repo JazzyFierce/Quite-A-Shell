@@ -16,32 +16,21 @@ void handlingCommands(char **commandstr)
 
     if (pid == 0)
     {
-        if (strcmp("pwd", args[0]) == 0)
+        if (strcmp("pwd", commandstr[0]) == 0)
         {
             char cwd[1024];
             getcwd(cwd, 1024);
             printf("%s\n", cwd);
         }
 
-        if (strcmp("ls", args[0]) == 0)
+        if (strcmp("ls", commandstr[0]) == 0)
         {
-            execlp("/bin/ls", *(args + 1));
+            execvp("/bin/ls", args);
         }
 
-        if (strcmp("echo", args[0]) == 0)
+        if (strcmp("echo", commandstr[0]) == 0)
         {
-            // execl("/bin/echo", *args);
-            int i = 1;
-            while (i < numArgs)
-            {
-                if (strcmp("\"", args[i]) == 0)
-                {
-                    i++;
-                }
-                printf("%s ", args[i]);
-                i++;
-            }
-            printf("\n");
+            execvp("/bin/echo", args);
         }
 
         exit(0);
@@ -60,11 +49,9 @@ void tokenize(char *command)
 
     while (token != NULL)
     {
-        // printf("%s\n", token);
         args[numArgs] = token;
         token = strtok(NULL, " \n\"");
         numArgs++;
-        printf("%s\n", args[numArgs - 1]);
     }
 }
 
@@ -76,7 +63,7 @@ int main()
         fgets(buffer, 1024, stdin);
         tokenize(buffer);
 
-        if (strcmp("exit", args[0]) == 0)
+        if (strcmp("exit", args[0]) == 0 || strcmp("quit", args[0]) == 0)
         {
             exit(0);
         }
