@@ -30,19 +30,31 @@ void handlingCommands(char **commandstr)
 
         if (strcmp("echo", commandstr[0]) == 0)
         {
- 		int count =0;           
+ 		    int count =0;           
             for (int i = 1; commandstr[i]; i++) {
-            
-            if (commandstr[i][0] == '$') {
-              
-                printf("%s ", getenv(commandstr[i] + 1));
-            } else {
-                printf("%s ", commandstr[i]);
+                if (commandstr[i][0] == '$' && commandstr[i][1] != ' ') {
+                    printf("%s ", getenv(commandstr[i] + 1));
+                } else {
+                    printf("%s ", commandstr[i]);
+                }
             }
-          
-            //execvp("/bin/echo", args) 
+            printf("\n");
         }
-        printf("\n");
+        
+        if (strcmp("export", commandstr[0]) == 0) {
+            if (strchr(commandstr[1], '$') == NULL) {
+                putenv(commandstr[1]);
+            } else {
+                char* temp1;
+                e = strchr(commandstr[1], '=');
+                int index = (int)(e - commandstr[1])
+                strncpy(temp1, commandstr[1], index)
+                char* temp2;
+                strncpy(temp2, commandstr[1]+index+1, sizeof(commandstr)-index-1);
+                setenv(temp1, temp2, 1);
+                free(temp1);
+                free(temp2);
+            }
         }
         
         if (strcmp("cd", commandstr[0]) ==0)
