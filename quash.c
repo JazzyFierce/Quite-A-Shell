@@ -43,22 +43,6 @@ void handlingCommands(char **commandstr)
             printf("\n");
         }
         
-        if (strcmp("export", commandstr[0]) == 0) {
-            if (strchr(commandstr[1], '$') == NULL) {
-                putenv(commandstr[1]);
-            } else {
-                char* temp1;
-                e = strchr(commandstr[1], '=');
-                int index = (int)(e - commandstr[1])
-                strncpy(temp1, commandstr[1], index)
-                char* temp2;
-                strncpy(temp2, commandstr[1]+index+1, sizeof(commandstr)-index-1);
-                setenv(temp1, temp2, 1);
-                free(temp1);
-                free(temp2);
-            }
-        }
-        
         if (strcmp("cd", commandstr[0]) ==0)
         {
             if(  chdir(args[1]) != 0) {
@@ -67,12 +51,10 @@ void handlingCommands(char **commandstr)
         }
         
         if (strcmp("du",  commandstr[0]) ==0 ){
-            
-	for (int i = 0; commandstr[i]; i++) {
-            replace_with_env(&commandstr[i]);
-        }
-       
-        execvp(commandstr[0], commandstr);
+	        for (int i = 0; commandstr[i]; i++) {
+                replace_with_env(&commandstr[i]);
+            }
+            execvp(commandstr[0], commandstr);
         }
 
         exit(0);
@@ -109,6 +91,36 @@ void replace_with_env(char **arg) {
     }
 }
 
+// TODO: add case for initializing arbitrary variable without assignment
+int export(char** commandstr) {
+    if (strchr(commandstr[1], '$') == NULL) {
+        // assumes valid input
+        // eg export testvar=testval
+        char* e = strchr(commandstr[1], '=');
+        int index = (int)(e - commandstr[1]);
+        
+        char* temp1 = malloc(index+1);
+        strncpy(temp1, commandstr[1], index);
+        temp1[index] = 0;
+
+        setenv(temp1, commandstr[1]+index+1, 1);
+        
+        free(temp1);
+    } else { 
+        // assumes valid input
+        // eg export PATH=$HOME
+        char* e = strchr(commandstr[1], '=');
+        int index = (int)(e - commandstr[1]);
+        
+        char* temp1 = malloc(index+1);
+        strncpy(temp1, commandstr[1], index);
+        temp1[index] = 0;
+
+        setenv(temp1, getenv(commandstr[1]+index+2), 1);
+        
+        free(temp1);
+    }
+}
 
 void tokenize(char *command)
 {
