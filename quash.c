@@ -43,13 +43,6 @@ void handlingCommands(char **commandstr)
             printf("\n");
         }
         
-        if (strcmp("cd", commandstr[0]) ==0)
-        {
-            if(  chdir(args[1]) != 0) {
-            	printf("%s is not a directory\n", args[1]);
-            };
-        }
-        
         if (strcmp("du",  commandstr[0]) ==0 ){
 	        for (int i = 0; commandstr[i]; i++) {
                 replace_with_env(&commandstr[i]);
@@ -120,6 +113,14 @@ int export(char** commandstr) {
         
         free(temp1);
     }
+
+    return 0;
+}
+
+void changeDir(char** commandstr) {
+    if (chdir(commandstr[1]) != 0) {
+        printf("%s is not a directory\n", commandstr[1]);
+    }
 }
 
 void tokenize(char *command)
@@ -147,6 +148,16 @@ int main()
         if (strcmp("exit", args[0]) == 0 || strcmp("quit", args[0]) == 0)
         { 
             exit(0);
+        }
+        else if (strcmp("export", args[0]) == 0) {
+            export(args);
+            numArgs = 0;
+            memset(buffer, 0, strlen(buffer));
+        }
+        else if (strcmp("cd", args[0]) == 0) {
+            changeDir(args);
+            numArgs = 0;
+            memset(buffer, 0, strlen(buffer));
         }
         else
         {
