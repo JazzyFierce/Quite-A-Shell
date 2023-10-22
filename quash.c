@@ -9,6 +9,8 @@ char buffer[1024];
 char *args[256];
 int numArgs = 0;
 
+void replace_with_env(char **arg);
+
 void handlingCommands(char **commandstr)
 {
 
@@ -51,6 +53,15 @@ void handlingCommands(char **commandstr)
             	printf("%s is not a directory\n", args[1]);
             };
         }
+        
+        if (strcmp("du",  commandstr[0]) ==0 ){
+            
+	for (int i = 0; commandstr[i]; i++) {
+            replace_with_env(&commandstr[i]);
+        }
+       
+        execvp(commandstr[0], commandstr);
+        }
 
         exit(0);
     }
@@ -59,6 +70,33 @@ void handlingCommands(char **commandstr)
         wait(NULL);
     }
 }
+
+void replace_with_env(char **arg) {
+    if ((*arg)[0] == '$') {
+        char *env_name_ending = strpbrk(*arg, "/ \n\t"); 
+        char *rem = NULL;
+        
+        if (env_name_ending) {
+            rem = strdup(env_name_ending);  
+            *env_name_ending = '\0';  
+        }
+
+        char *env_value = getenv(*arg + 1);
+        if (env_value) {
+            char *new_arg = (char *) malloc(strlen(env_value) + (rem ? strlen(rem) : 0) + 1);
+            strcpy(new_arg, env_value);
+            if (rem) {
+                strcat(new_arg, rem);
+                free(rem);
+            }
+            *arg = new_arg;
+        } else {
+            *arg = rem ? rem : ""; 
+        }
+    	
+    }
+}
+
 
 void tokenize(char *command)
 {
