@@ -30,7 +30,26 @@ void handlingCommands(char **commandstr)
 
         if (strcmp("echo", commandstr[0]) == 0)
         {
-            execvp("/bin/echo", args);
+ 		int count =0;           
+            for (int i = 1; commandstr[i]; i++) {
+            
+            if (commandstr[i][0] == '$') {
+              
+                printf("%s ", getenv(commandstr[i] + 1));
+            } else {
+                printf("%s ", commandstr[i]);
+            }
+          
+            //execvp("/bin/echo", args) 
+        }
+        printf("\n");
+        }
+        
+        if (strcmp("cd", commandstr[0]) ==0)
+        {
+            if(  chdir(args[1]) != 0) {
+            	printf("%s is not a directory\n", args[1]);
+            };
         }
 
         exit(0);
@@ -45,12 +64,12 @@ void tokenize(char *command)
 {
     memset(args, 0, sizeof(args));
     char *token;
-    token = strtok(command, " \n\"");
+    token = strtok(command, " \n\"'");
 
     while (token != NULL)
     {
         args[numArgs] = token;
-        token = strtok(NULL, " \n\"");
+        token = strtok(NULL, " \n\"'");
         numArgs++;
     }
 }
@@ -64,7 +83,7 @@ int main()
         tokenize(buffer);
 
         if (strcmp("exit", args[0]) == 0 || strcmp("quit", args[0]) == 0)
-        {
+        { 
             exit(0);
         }
         else
