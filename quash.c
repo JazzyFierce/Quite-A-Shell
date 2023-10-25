@@ -5,8 +5,9 @@
 #include <sys/wait.h>
 #include <string.h>
 #include <sys/shm.h>
-#include <string.h>
 #include <sys/stat.h>
+#include <errno.h>
+#include <strings.h>
 
 char buffer[1024];
 char *args[256];
@@ -251,6 +252,8 @@ int main()
                 handlingCommands(args, shared_buf);
             }
         }
+        numArgs =0;
+        memset(buffer, 0, strlen(buffer));
     }
 
     /* detach the shared memory segment */
