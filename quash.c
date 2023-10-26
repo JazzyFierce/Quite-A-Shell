@@ -8,6 +8,7 @@
 #include <sys/stat.h>
 #include <errno.h>
 #include <strings.h>
+#include <fcntl.h>
 
 char buffer[1024];
 char *args[256];
@@ -24,7 +25,8 @@ struct Process {
 struct Process currentBackgroundJobs[256];
 
 void handlingCommands(char **commandstr, int* backgroundIsActiveArray);
-void executePipes(char **args, int numArgs, int numPipes);
+void handlingCommandsWithRedirects(char **commandstr, int* backgroundIsActiveArray);
+void executePipes(char **args, int numArgs, int numPipes, int* arr);
 
 void replace_with_env(char **arg) {
     if ((*arg)[0] == '$') {
@@ -64,19 +66,19 @@ void handleMultiplePipesandhandlingCommands(char **args, int n, int* backgroundI
     }
 
     if(numPipes <= 0){
-        handlingCommands(args, backgroundIsActiveArray);
+        handlingCommandsWithRedirects(args, backgroundIsActiveArray);
     }
 
     else{
 
-        executePipes(args, n, numPipes);
+        executePipes(args, n, numPipes, backgroundIsActiveArray);
     }
 
 }
 
-void executePipes(char **args, int numArgs, int numPipes){
+void executePipes(char **args, int numArgs, int numPipes, int* arr) {
 
-    printf("arranging into commands \n");
+    // printf("arranging into commands \n");
     //arrange commands
     char ***commands = malloc((numPipes + 1) * sizeof(char **));
 
@@ -146,7 +148,8 @@ void executePipes(char **args, int numArgs, int numPipes){
                 close(pp[j][1]);
             }
 
-            execvp(commands[i][0], commands[i]);
+            handlingCommandsWithRedirects(commands[i], arr);
+            // execvp(commands[i][0], commands[i]);
             // printf("execvp didn't run \n");
             exit(EXIT_FAILURE);
         }
@@ -170,6 +173,87 @@ void executePipes(char **args, int numArgs, int numPipes){
     
 }
 
+void handlingCommandsWithRedirects(char **commandstr, int* backgroundIsActiveArray) {
+    int redirectIndex = 0;
+    char* redirectSymbol;
+    char* leftCmd[512];
+    char* rightCmd[512];
+
+    // handle redirects
+    for (int i = 0; commandstr[i]; i++) {
+        if (strcmp(commandstr[i], "<") == 0 || strcmp(commandstr[i], ">") == 0) {
+            redirectIndex = i;
+            redirectSymbol = commandstr[i];
+        } 
+    }
+
+    if (redirectIndex != 0) {
+        // printf("uses redirects");
+        for (int i = 0; commandstr[i]; i++) {
+            if (i < redirectIndex) {
+                leftCmd[i] = strdup(commandstr[i]);
+                // printf("%s", leftCmd[i]);
+            } 
+            else if (i > redirectIndex) {
+                rightCmd[i-redirectIndex-1] = strdup(commandstr[i]);
+                // printf("%s", rightCmd[i-redirectIndex-1]);
+            }
+        }
+
+        if (*redirectSymbol == '>') {
+            int status;
+
+            pid_t pid;
+            pid = fork();
+
+            if (pid < 0) {
+                fprintf(stderr, "Fork failed\n");
+            } 
+            else if (pid == 0) {
+                char* fileName = rightCmd[0];
+
+                int outfd = open(fileName,  O_CREAT | O_WRONLY | O_TRUNC, 0666);
+                dup2(outfd, STDOUT_FILENO);
+                handlingCommands(leftCmd, backgroundIsActiveArray);
+
+                close(outfd);
+                exit(0);
+            }
+            else
+            {   
+                waitpid(pid, &status, 0);
+            }
+        }
+
+        else if (*redirectSymbol == '<') {
+            int status;
+            
+            pid_t pid;
+            pid = fork();
+
+            if (pid < 0) {
+                fprintf(stderr, "Fork failed\n");
+            }
+            else if (pid == 0) {
+                char* fileName = rightCmd[0];
+
+                int infd = open(fileName, O_RDONLY);
+                dup2(infd, STDIN_FILENO);
+                handlingCommands(leftCmd, backgroundIsActiveArray);
+
+                close(infd);
+                exit(0); 
+            }
+            else {
+                waitpid(pid, &status, 0);
+            }
+        }
+    }
+
+    else {
+        handlingCommands(commandstr, backgroundIsActiveArray);
+    }
+}
 
 void handlingCommands(char **commandstr, int* backgroundIsActiveArray)
 {
@@ -185,42 +269,49 @@ void handlingCommands(char **commandstr, int* backgroundIsActiveArray)
             printf("%s\n", cwd);
         }
 
-        if (strcmp("ls", commandstr[0]) == 0)
+        else if (strcmp("ls", commandstr[0]) == 0)
         {
-            execvp("/bin/ls", args);
+            execvp("/bin/ls", commandstr);
         }
 
-        if (strcmp("echo", commandstr[0]) == 0)
+        else if (strcmp("echo", commandstr[0]) == 0)
         {
  		    int count =0;           
             for (int i = 1; commandstr[i]; i++) {
                 if (commandstr[i][0] == '$' && commandstr[i][1] != ' ') {
                     printf("%s ", getenv(commandstr[i] + 1));
+                    // printf("%d", i);
                 } else {
                     printf("%s ", commandstr[i]);
+                    // printf("%d", i);
                 }
             }
             printf("\n");
         }
         
-        if (strcmp("du",  commandstr[0]) ==0 ){
+        else if (strcmp("du",  commandstr[0]) ==0 ){
 	        for (int i = 0; commandstr[i]; i++) {
                 replace_with_env(&commandstr[i]);
             }
             execvp(commandstr[0], commandstr);
         }
 
-        if (strcmp("kill", commandstr[0]) == 0) {
+        else if (strcmp("kill", commandstr[0]) == 0) {
+            // kill(pid, sig)
             int res = kill(atoi(commandstr[2]), atoi(commandstr[1]));
             for (int i; i < numBackgroundJobs; i++) {
-                if (currentBackgroundJobs[i].pid == atoi(commandstr[1])) {
+                if (currentBackgroundJobs[i].pid == atoi(commandstr[2])) {
                     backgroundIsActiveArray[i] = 0;
                 }
             }
         }
 
-        if (strcmp("sleep", commandstr[0]) == 0) {
+        else if (strcmp("sleep", commandstr[0]) == 0) {
             sleep(atoi(commandstr[1]));
+        }
+
+        else {
+            execvp(commandstr[0], commandstr);
         }
 
         exit(0);
@@ -238,13 +329,14 @@ void handlingCommandsBackground(char** commandstr, char* cmd, int* backgroundIsA
     {
         int index = numBackgroundJobs;
         printf("\nBackground job started: [%d] %d %s", numBackgroundJobs+1, getpid(), cmd); 
-        handlingCommands(commandstr, backgroundIsActiveArray);
-        printf("\nBackground job complete\n");
+        handlingCommandsWithRedirects(commandstr, backgroundIsActiveArray);
+        printf("\nCompleted: [%d] %d %s\n", index+1, getpid(), cmd);
         backgroundIsActiveArray[numBackgroundJobs] = 0;
         exit(0);
     }
     else
     {
+        sleep(1);
         currentBackgroundJobs[numBackgroundJobs].pid = pid;
         currentBackgroundJobs[numBackgroundJobs].command = strdup(cmd);
         currentBackgroundJobs[numBackgroundJobs].id = numBackgroundJobs+1;
