@@ -23,6 +23,9 @@ struct Process {
 
 struct Process currentBackgroundJobs[256];
 
+void handlingCommands(char **commandstr, int* backgroundIsActiveArray);
+void executePipes(char **args, int numArgs, int numPipes);
+
 void replace_with_env(char **arg) {
     if ((*arg)[0] == '$') {
         char *env_name_ending = strpbrk(*arg, "/ \n\t"); 
@@ -48,6 +51,125 @@ void replace_with_env(char **arg) {
     	
     }
 }
+
+void handleMultiplePipesandhandlingCommands(char **args, int n, int* backgroundIsActiveArray){
+
+    int numPipes =0;
+
+    for(int i =0; i<n; i++){
+        //printf("arg is : %s \n", args[i]);
+        if(strcmp(args[i], "|") == 0){
+            numPipes++;
+        }
+    }
+
+    if(numPipes <= 0){
+        handlingCommands(args, backgroundIsActiveArray);
+    }
+
+    else{
+
+        executePipes(args, n, numPipes);
+    }
+
+}
+
+void executePipes(char **args, int numArgs, int numPipes){
+
+    printf("arranging into commands \n");
+    //arrange commands
+    char ***commands = malloc((numPipes + 1) * sizeof(char **));
+
+    int cmdIndex  = 0;
+
+    commands[cmdIndex++] = args;
+    for(int i =0; i< numArgs; i++){
+       if(strcmp(args[i], "|") == 0){
+        args[i] = NULL;
+        commands[cmdIndex++] = &args[i+1];
+       }
+        
+    }
+
+    /*
+    Print the stored commands
+    for (int i = 0; i < numPipes + 1; i++) {
+        printf("Command %d: ", i + 1);
+        for (int j = 0; commands[i][j] != NULL; j++) {
+            printf("%s ", commands[i][j]);
+        }
+        printf("\n");
+    }
+
+    */
+    
+    
+    fflush(stdout);
+
+    int n = numPipes+1;
+    int pp[n-1][2]; //hold pipes in this
+    pid_t pids[n];
+    int status;
+   
+    //create pipes
+    for(int i =0; i< n-1; i++){
+        if(pipe(pp[i]) == -1){
+            perror("Error creating the pipe");
+            exit(1);
+        }
+    }
+
+    //childs are in for loop
+    for(int i =0; i< n ; i++){
+
+        pids[i] = fork();
+
+        if( pids[i] == -1 ){
+            perror("fork");
+            exit(EXIT_FAILURE);
+        }
+
+        if(pids[i] == 0 ){
+
+            if(i != 0) {
+                dup2(pp[i-1][0], STDIN_FILENO);
+                close(pp[i-1][0]);
+            }
+
+            if( i != n-1 ) {
+                dup2(pp[i][1], STDOUT_FILENO);
+                close(pp[i][1]);
+            }
+
+            for(int j = 0; j< n-1; j++){
+                close(pp[j][0]);
+                close(pp[j][1]);
+            }
+
+            execvp(commands[i][0], commands[i]);
+            // printf("execvp didn't run \n");
+            exit(EXIT_FAILURE);
+        }
+
+    }
+    free(commands);
+
+    for(int i =0;  i< numPipes; i++){
+        close(pp[i][0]);
+        close(pp[i][1]);
+    }
+
+
+    //Parent is here
+    for(int i=0; i<numPipes+1; i++){
+        waitpid(pids[i], &status, 0);
+    }
+    
+
+    //printf("Parent process finished \n");
+    
+}
+
 
 void handlingCommands(char **commandstr, int* backgroundIsActiveArray)
 {
@@ -249,7 +371,8 @@ int main()
             }
             else
             {
-                handlingCommands(args, shared_buf);
+                handleMultiplePipesandhandlingCommands(args, numArgs, shared_buf);
+                //handlingCommands(args, shared_buf);
             }
         }
         numArgs =0;
