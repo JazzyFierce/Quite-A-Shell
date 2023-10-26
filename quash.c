@@ -192,11 +192,9 @@ void handlingCommandsWithRedirects(char **commandstr, int* backgroundIsActiveArr
         for (int i = 0; commandstr[i]; i++) {
             if (i < redirectIndex) {
                 leftCmd[i] = strdup(commandstr[i]);
-                // printf("%s", leftCmd[i]);
             } 
             else if (i > redirectIndex) {
                 rightCmd[i-redirectIndex-1] = strdup(commandstr[i]);
-                // printf("%s", rightCmd[i-redirectIndex-1]);
             }
         }
 
@@ -237,11 +235,12 @@ void handlingCommandsWithRedirects(char **commandstr, int* backgroundIsActiveArr
             else if (pid == 0) {
                 char* fileName = rightCmd[0];
 
-                int infd = open(fileName, O_RDONLY);
-                dup2(infd, STDIN_FILENO);
-                handlingCommands(leftCmd, backgroundIsActiveArray);
+                // int infd = open(fileName, O_RDONLY);
+                // dup2(infd, STDIN_FILENO);
+                char* temp[] = {leftCmd[0], fileName, NULL};
+                handlingCommands(temp, backgroundIsActiveArray);
 
-                close(infd);
+                // close(infd);
                 exit(0); 
             }
             else {
@@ -276,15 +275,19 @@ void handlingCommands(char **commandstr, int* backgroundIsActiveArray)
 
         else if (strcmp("echo", commandstr[0]) == 0)
         {
- 		    int count =0;           
+            for (int i = 0; commandstr[i]; i++) {
+                replace_with_env(&commandstr[i]);
+            }
+        
             for (int i = 1; commandstr[i]; i++) {
-                if (commandstr[i][0] == '$' && commandstr[i][1] != ' ') {
+                /*if (commandstr[i][0] == '$' && commandstr[i][1] != ' ') {
                     printf("%s ", getenv(commandstr[i] + 1));
                     // printf("%d", i);
                 } else {
                     printf("%s ", commandstr[i]);
                     // printf("%d", i);
-                }
+                }*/
+                printf("%s ", commandstr[i]);
             }
             printf("\n");
         }
@@ -297,7 +300,7 @@ void handlingCommands(char **commandstr, int* backgroundIsActiveArray)
         }
 
         else if (strcmp("kill", commandstr[0]) == 0) {
-            // kill(pid, sig)
+            // kill(pid, sig), user wiill give as kill sig pid
             int res = kill(atoi(commandstr[2]), atoi(commandstr[1]));
             for (int i; i < numBackgroundJobs; i++) {
                 if (currentBackgroundJobs[i].pid == atoi(commandstr[2])) {
