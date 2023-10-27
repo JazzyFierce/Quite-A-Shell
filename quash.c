@@ -58,27 +58,23 @@ void handleMultiplePipesandhandlingCommands(char **args, int n, int* backgroundI
 
     int numPipes =0;
 
-    for(int i =0; i<n; i++){
-        //printf("arg is : %s \n", args[i]);
+    for (int i =0; i<n; i++){
         if(strcmp(args[i], "|") == 0){
             numPipes++;
         }
     }
 
-    if(numPipes <= 0){
+    if (numPipes <= 0) {
         handlingCommandsWithRedirects(args, backgroundIsActiveArray);
     }
 
-    else{
-
+    else {
         executePipes(args, n, numPipes, backgroundIsActiveArray);
     }
 
 }
 
 void executePipes(char **args, int numArgs, int numPipes, int* arr) {
-
-    // printf("arranging into commands \n");
     //arrange commands
     char ***commands = malloc((numPipes + 1) * sizeof(char **));
 
@@ -92,19 +88,6 @@ void executePipes(char **args, int numArgs, int numPipes, int* arr) {
        }
         
     }
-
-    /*
-    Print the stored commands
-    for (int i = 0; i < numPipes + 1; i++) {
-        printf("Command %d: ", i + 1);
-        for (int j = 0; commands[i][j] != NULL; j++) {
-            printf("%s ", commands[i][j]);
-        }
-        printf("\n");
-    }
-
-    */
-    
     
     fflush(stdout);
 
@@ -149,8 +132,6 @@ void executePipes(char **args, int numArgs, int numPipes, int* arr) {
             }
 
             handlingCommandsWithRedirects(commands[i], arr);
-            // execvp(commands[i][0], commands[i]);
-            // printf("execvp didn't run \n");
             exit(EXIT_FAILURE);
         }
 
@@ -166,11 +147,7 @@ void executePipes(char **args, int numArgs, int numPipes, int* arr) {
     //Parent is here
     for(int i=0; i<numPipes+1; i++){
         waitpid(pids[i], &status, 0);
-    }
-    
-
-    //printf("Parent process finished \n");
-    
+    } 
 }
 
 void handlingCommandsWithRedirects(char **commandstr, int* backgroundIsActiveArray) {
@@ -179,7 +156,6 @@ void handlingCommandsWithRedirects(char **commandstr, int* backgroundIsActiveArr
     char* leftCmd[512];
     char* rightCmd[512];
 
-    // handle redirects
     for (int i = 0; commandstr[i]; i++) {
         if (strcmp(commandstr[i], "<") == 0 || strcmp(commandstr[i], ">") == 0) {
             redirectIndex = i;
@@ -188,7 +164,6 @@ void handlingCommandsWithRedirects(char **commandstr, int* backgroundIsActiveArr
     }
 
     if (redirectIndex != 0) {
-        // printf("uses redirects");
         for (int i = 0; commandstr[i]; i++) {
             if (i < redirectIndex) {
                 leftCmd[i] = strdup(commandstr[i]);
@@ -206,6 +181,7 @@ void handlingCommandsWithRedirects(char **commandstr, int* backgroundIsActiveArr
 
             if (pid < 0) {
                 fprintf(stderr, "Fork failed\n");
+                exit(EXIT_FAILURE);
             } 
             else if (pid == 0) {
                 char* fileName = rightCmd[0];
@@ -231,17 +207,14 @@ void handlingCommandsWithRedirects(char **commandstr, int* backgroundIsActiveArr
 
             if (pid < 0) {
                 fprintf(stderr, "Fork failed\n");
+                exit(EXIT_FAILURE);
             }
             else if (pid == 0) {
                 char* fileName = rightCmd[0];
-
-                // int infd = open(fileName, O_RDONLY);
-                // dup2(infd, STDIN_FILENO);
                 char* temp[] = {leftCmd[0], fileName, NULL};
                 handlingCommands(temp, backgroundIsActiveArray);
 
-                // close(infd);
-                exit(0); 
+                exit(EXIT_FAILURE); 
             }
             else {
                 waitpid(pid, &status, 0);
@@ -258,6 +231,11 @@ void handlingCommands(char **commandstr, int* backgroundIsActiveArray)
 {
     int exitStatus;
     int pid = fork();
+
+    if (pid < 0) {
+        fprintf(stderr, "Fork failed\n");
+        exit(EXIT_FAILURE);
+    }
 
     if (pid == 0)
     {
@@ -280,13 +258,6 @@ void handlingCommands(char **commandstr, int* backgroundIsActiveArray)
             }
         
             for (int i = 1; commandstr[i]; i++) {
-                /*if (commandstr[i][0] == '$' && commandstr[i][1] != ' ') {
-                    printf("%s ", getenv(commandstr[i] + 1));
-                    // printf("%d", i);
-                } else {
-                    printf("%s ", commandstr[i]);
-                    // printf("%d", i);
-                }*/
                 printf("%s ", commandstr[i]);
             }
             printf("\n");
@@ -315,6 +286,8 @@ void handlingCommands(char **commandstr, int* backgroundIsActiveArray)
 
         else {
             execvp(commandstr[0], commandstr);
+            // this line should only be reached if exec fails
+            printf("Command or executable '%s' not found\n", commandstr[0]);
         }
 
         exit(0);
@@ -328,7 +301,11 @@ void handlingCommands(char **commandstr, int* backgroundIsActiveArray)
 void handlingCommandsBackground(char** commandstr, char* cmd, int* backgroundIsActiveArray) {
     int pid = fork();
 
-    if (pid == 0)
+    if (pid < 0) {
+        fprintf(stderr, "Fork failed\n");
+        exit(EXIT_FAILURE);
+    }
+    else if (pid == 0)
     {
         int index = numBackgroundJobs;
         printf("\nBackground job started: [%d] %d %s", numBackgroundJobs+1, getpid(), cmd); 
@@ -467,7 +444,6 @@ int main()
             else
             {
                 handleMultiplePipesandhandlingCommands(args, numArgs, shared_buf);
-                //handlingCommands(args, shared_buf);
             }
         }
         numArgs =0;
