@@ -100,7 +100,7 @@ void executePipes(char **args, int numArgs, int numPipes, int* arr) {
     for(int i =0; i< n-1; i++){
         if(pipe(pp[i]) == -1){
             perror("Error creating the pipe");
-            exit(EXIT_FAILURE);
+            exit(1);
         }
     }
 
@@ -132,7 +132,7 @@ void executePipes(char **args, int numArgs, int numPipes, int* arr) {
             }
 
             handlingCommandsWithRedirects(commands[i], arr);
-            exit(0);
+            exit(EXIT_FAILURE);
         }
 
     }
@@ -434,7 +434,10 @@ int main()
         } 
         else 
         {
-            if (strcmp("exit", args[0]) == 0 || strcmp("quit", args[0]) == 0) { 
+            if (strstr(args[0], "quash") != NULL) {
+                printf("Running quash within quash is not allowed!\n");
+            }
+            else if (strcmp("exit", args[0]) == 0 || strcmp("quit", args[0]) == 0) { 
                 exit(0);
             }
             else if (strcmp("export", args[0]) == 0) {
