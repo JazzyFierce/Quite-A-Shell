@@ -64,6 +64,8 @@ void handleMultiplePipesandhandlingCommands(char **args, int n, int* backgroundI
         }
     }
 
+    // printf("%d", numPipes);
+
     if (numPipes <= 0) {
         handlingCommandsWithRedirects(args, backgroundIsActiveArray);
     }
@@ -89,6 +91,16 @@ void executePipes(char **args, int numArgs, int numPipes, int* arr) {
         
     }
     
+    /*
+    for (int i = 0; i < numPipes + 1; i++) {
+        printf("Command %d ", i+1);
+        for (int j = 0; commands[i][j] != NULL; j++) {
+            printf("%s ", commands[i][j]);
+        }
+        printf("\n");
+    }
+    */
+
     fflush(stdout);
 
     int n = numPipes+1;
@@ -132,7 +144,7 @@ void executePipes(char **args, int numArgs, int numPipes, int* arr) {
             }
 
             handlingCommandsWithRedirects(commands[i], arr);
-            exit(EXIT_FAILURE);
+            exit(0);
         }
 
     }
@@ -301,18 +313,38 @@ void handlingCommands(char **commandstr, int* backgroundIsActiveArray)
 void handlingCommandsBackground(char** commandstr, char* cmd, int* backgroundIsActiveArray) {
     int pid = fork();
 
+    int numPipes =0;
+
+    for (int i =0; i<numArgs; i++){
+        if(strcmp(args[i], "|") == 0){
+            numPipes++;
+        }
+    }
+
+    // printf("%d", numPipes);
+
     if (pid < 0) {
         fprintf(stderr, "Fork failed\n");
         exit(EXIT_FAILURE);
     }
     else if (pid == 0)
     {
+
         int index = numBackgroundJobs;
         printf("\nBackground job started: [%d] %d %s", numBackgroundJobs+1, getpid(), cmd); 
-        handlingCommandsWithRedirects(commandstr, backgroundIsActiveArray);
-        printf("\nCompleted: [%d] %d %s\n", index+1, getpid(), cmd);
-        backgroundIsActiveArray[numBackgroundJobs] = 0;
-        exit(0);
+
+        if (numPipes <= 0) {
+            handlingCommandsWithRedirects(commandstr, backgroundIsActiveArray);
+            printf("\nCompleted: [%d] %d %s\n", index+1, getpid(), cmd);
+            backgroundIsActiveArray[numBackgroundJobs] = 0;
+            exit(0);
+        }
+        else {
+            executePipes(commandstr, numArgs, numPipes, backgroundIsActiveArray);
+            printf("\nCompleted: [%d] %d %s\n", index+1, getpid(), cmd);
+            backgroundIsActiveArray[numBackgroundJobs] = 0;
+            exit(0);
+        }
     }
     else
     {
@@ -358,6 +390,11 @@ int export(char** commandstr) {
 }
 
 void changeDir(char** commandstr) {
+
+    for (int i = 0; commandstr[i]; i++) {
+        replace_with_env(&commandstr[i]);
+    }
+
     if (chdir(commandstr[1]) != 0) {
         printf("%s is not a directory\n", commandstr[1]);
     }
@@ -431,7 +468,8 @@ int main()
             runInBackground = 0;
             shared_buf[numBackgroundJobs] = 1;
             handlingCommandsBackground(args, thing, shared_buf);
-        } 
+        }
+
         else 
         {
             if (strstr(args[0], "quash") != NULL) {
