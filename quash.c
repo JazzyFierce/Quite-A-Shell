@@ -361,6 +361,10 @@ void changeDir(char** commandstr) {
     if (chdir(commandstr[1]) != 0) {
         printf("%s is not a directory\n", commandstr[1]);
     }
+
+    char cwd[1024];
+    getcwd(cwd, 1024);
+    setenv("PWD", cwd, 1);
 }
 
 void tokenize(char *command)
@@ -408,6 +412,7 @@ int main()
     segment_id = shmget(IPC_PRIVATE, size, S_IRUSR|S_IWUSR);
     /* attach the shared memory segment */
     shared_buf = (int *) shmat(segment_id, NULL, 0);
+    printf("Welcome...\n");
 
     while (1)
     {
