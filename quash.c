@@ -100,7 +100,7 @@ void executePipes(char **args, int numArgs, int numPipes, int* arr) {
     for(int i =0; i< n-1; i++){
         if(pipe(pp[i]) == -1){
             perror("Error creating the pipe");
-            exit(1);
+            exit(EXIT_FAILURE);
         }
     }
 
@@ -132,7 +132,7 @@ void executePipes(char **args, int numArgs, int numPipes, int* arr) {
             }
 
             handlingCommandsWithRedirects(commands[i], arr);
-            exit(EXIT_FAILURE);
+            exit(0);
         }
 
     }
@@ -214,7 +214,7 @@ void handlingCommandsWithRedirects(char **commandstr, int* backgroundIsActiveArr
                 char* temp[] = {leftCmd[0], fileName, NULL};
                 handlingCommands(temp, backgroundIsActiveArray);
 
-                exit(EXIT_FAILURE); 
+                exit(0); 
             }
             else {
                 waitpid(pid, &status, 0);
@@ -444,6 +444,7 @@ int main()
             else
             {
                 handleMultiplePipesandhandlingCommands(args, numArgs, shared_buf);
+                //handlingCommands(args, shared_buf);
             }
         }
         numArgs =0;
