@@ -15,11 +15,12 @@ char *args[256];
 int numArgs = 0;
 int runInBackground = 0;
 int numBackgroundJobs = 0;
+char thing[1025];
 
 struct Process {
     int id;
     int pid;
-    char* command;
+    char command[1025];
 };
 
 struct Process currentBackgroundJobs[256];
@@ -46,9 +47,12 @@ void replace_with_env(char **arg) {
                 strcat(new_arg, rem);
                 free(rem);
             }
-            *arg = new_arg;
+            strcpy(*arg, new_arg);
+            // *arg = strdup(new_arg);
+            free(new_arg);
         } else {
             *arg = rem ? rem : ""; 
+            free(rem);
         }
     	
     }
@@ -144,6 +148,7 @@ void executePipes(char **args, int numArgs, int numPipes, int* arr) {
             }
 
             handlingCommandsWithRedirects(commands[i], arr);
+            free(commands);
             exit(0);
         }
 
@@ -165,6 +170,7 @@ void executePipes(char **args, int numArgs, int numPipes, int* arr) {
 void handlingCommandsWithRedirects(char **commandstr, int* backgroundIsActiveArray) {
     int rd_in = -1;
     int rd_out = -1;
+    int rd_out_app = -1;
 
     for (int i = 0; commandstr[i]; i++) {
         if (strcmp(commandstr[i], "<") == 0) {
@@ -173,12 +179,15 @@ void handlingCommandsWithRedirects(char **commandstr, int* backgroundIsActiveArr
         else if (strcmp(commandstr[i], ">") == 0) {
             rd_out = i;
         }
+        else if (strcmp(commandstr[i], ">>") == 0) {
+            rd_out_app = i;
+        }
     }
 
     // printf("%d %d ", rd_in, rd_out);
 
     char* temp[1024];
-    if (rd_in == -1 && rd_out == -1) {
+    if (rd_in == -1 && rd_out == -1 && rd_out_app == -1) {
         int i = 0;
         for (i; commandstr[i]; i++) {
             temp[i] = commandstr[i];
@@ -188,7 +197,7 @@ void handlingCommandsWithRedirects(char **commandstr, int* backgroundIsActiveArr
     }
     else {
         int i = 0;
-        for (i; commandstr[i] && strcmp(commandstr[i], ">") != 0 && strcmp(commandstr[i], "<") != 0; i++) {
+        for (i; commandstr[i] && strcmp(commandstr[i], ">") != 0 && strcmp(commandstr[i], "<") != 0 && strcmp(commandstr[i], ">>") != 0; i++) {
             temp[i] = commandstr[i];
             // printf("%s ", temp[i]);
         }
@@ -211,6 +220,12 @@ void handlingCommandsWithRedirects(char **commandstr, int* backgroundIsActiveArr
 
         if (rd_out != -1) {
             int outfd = open(commandstr[rd_out+1],  O_CREAT | O_WRONLY | O_TRUNC, 0666);
+            dup2(outfd, STDOUT_FILENO);
+            close(outfd);
+        }
+
+        if (rd_out_app != -1) {
+            int outfd = open(commandstr[rd_out_app+1],  O_CREAT | O_WRONLY | O_APPEND, 0666);
             dup2(outfd, STDOUT_FILENO);
             close(outfd);
         }
@@ -267,9 +282,10 @@ void handlingCommands(char **commandstr, int* backgroundIsActiveArray)
         }
 
         else if (strcmp("kill", commandstr[0]) == 0) {
+            // free(thing);
             // kill(pid, sig), user wiill give as kill sig pid
             int res = kill(atoi(commandstr[2]), atoi(commandstr[1]));
-            for (int i; i < numBackgroundJobs; i++) {
+            for (int i = 0; i < numBackgroundJobs; i++) {
                 if (currentBackgroundJobs[i].pid == atoi(commandstr[2])) {
                     backgroundIsActiveArray[i] = 0;
                 }
@@ -334,7 +350,8 @@ void handlingCommandsBackground(char** commandstr, char* cmd, int* backgroundIsA
     {
         sleep(1);
         currentBackgroundJobs[numBackgroundJobs].pid = pid;
-        currentBackgroundJobs[numBackgroundJobs].command = strdup(cmd);
+        strcpy(currentBackgroundJobs[numBackgroundJobs].command, cmd);
+        // currentBackgroundJobs[numBackgroundJobs].command = strdup(cmd);
         currentBackgroundJobs[numBackgroundJobs].id = numBackgroundJobs+1;
         numBackgroundJobs++;
     }    
@@ -443,7 +460,8 @@ int main()
         memset(buffer, 0, strlen(buffer));
         printf("[Quash]$ ");
         fgets(buffer, 1024, stdin);
-        char* thing = strdup(buffer);
+        // thing = strdup(buffer);
+        strcpy(thing, buffer);
         tokenize(buffer);
 
         if (args[0] == NULL) {
@@ -462,6 +480,7 @@ int main()
                 printf("Running quash within quash is not allowed!\n");
             }
             else if (strcmp("exit", args[0]) == 0 || strcmp("quit", args[0]) == 0) { 
+                // free(thing);
                 exit(0);
             }
             else if (strcmp("export", args[0]) == 0) {
@@ -480,6 +499,7 @@ int main()
             }
         }
         numArgs =0;
+        // free(thing);
         memset(buffer, 0, strlen(buffer));
     }
 
