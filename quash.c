@@ -163,79 +163,63 @@ void executePipes(char **args, int numArgs, int numPipes, int* arr) {
 }
 
 void handlingCommandsWithRedirects(char **commandstr, int* backgroundIsActiveArray) {
-    int redirectIndex = 0;
-    char* redirectSymbol;
-    char* leftCmd[512];
-    char* rightCmd[512];
+    int rd_in = -1;
+    int rd_out = -1;
 
     for (int i = 0; commandstr[i]; i++) {
-        if (strcmp(commandstr[i], "<") == 0 || strcmp(commandstr[i], ">") == 0) {
-            redirectIndex = i;
-            redirectSymbol = commandstr[i];
-        } 
-    }
-
-    if (redirectIndex != 0) {
-        for (int i = 0; commandstr[i]; i++) {
-            if (i < redirectIndex) {
-                leftCmd[i] = strdup(commandstr[i]);
-            } 
-            else if (i > redirectIndex) {
-                rightCmd[i-redirectIndex-1] = strdup(commandstr[i]);
-            }
+        if (strcmp(commandstr[i], "<") == 0) {
+            rd_in = i;
         }
-
-        if (*redirectSymbol == '>') {
-            int status;
-
-            pid_t pid;
-            pid = fork();
-
-            if (pid < 0) {
-                fprintf(stderr, "Fork failed\n");
-                exit(EXIT_FAILURE);
-            } 
-            else if (pid == 0) {
-                char* fileName = rightCmd[0];
-
-                int outfd = open(fileName,  O_CREAT | O_WRONLY | O_TRUNC, 0666);
-                dup2(outfd, STDOUT_FILENO);
-                handlingCommands(leftCmd, backgroundIsActiveArray);
-
-                close(outfd);
-                exit(0);
-            }
-            else
-            {   
-                waitpid(pid, &status, 0);
-            }
-        }
-
-        else if (*redirectSymbol == '<') {
-            int status;
-            
-            pid_t pid;
-            pid = fork();
-
-            if (pid < 0) {
-                fprintf(stderr, "Fork failed\n");
-                exit(EXIT_FAILURE);
-            }
-            else if (pid == 0) {
-                char* fileName = rightCmd[0];
-                char* temp[] = {leftCmd[0], fileName, NULL};
-                handlingCommands(temp, backgroundIsActiveArray);
-
-                exit(0); 
-            }
-            else {
-                waitpid(pid, &status, 0);
-            }
+        else if (strcmp(commandstr[i], ">") == 0) {
+            rd_out = i;
         }
     }
 
+    // printf("%d %d ", rd_in, rd_out);
+
+    char* temp[1024];
+    if (rd_in == -1 && rd_out == -1) {
+        int i = 0;
+        for (i; commandstr[i]; i++) {
+            temp[i] = commandstr[i];
+            // printf("%s ", temp[i]);
+        }
+        temp[i] = NULL;
+    }
     else {
-        handlingCommands(commandstr, backgroundIsActiveArray);
+        int i = 0;
+        for (i; commandstr[i] && strcmp(commandstr[i], ">") != 0 && strcmp(commandstr[i], "<") != 0; i++) {
+            temp[i] = commandstr[i];
+            // printf("%s ", temp[i]);
+        }
+        temp[i] = NULL;
+    }
+    
+    int status;
+    pid_t pid = fork();
+
+    if (pid < 0) {
+        fprintf(stderr, "Fork failed\n");
+        exit(EXIT_FAILURE);
+    }
+    else if (pid == 0) {
+        if (rd_in != -1) {
+            int infd = open(commandstr[rd_in+1], O_RDONLY);
+            dup2(infd, STDIN_FILENO);
+            close(infd);
+        }
+
+        if (rd_out != -1) {
+            int outfd = open(commandstr[rd_out+1],  O_CREAT | O_WRONLY | O_TRUNC, 0666);
+            dup2(outfd, STDOUT_FILENO);
+            close(outfd);
+        }
+
+        handlingCommands(temp, backgroundIsActiveArray);
+        exit(0);
+    }
+    else {
+        waitpid(pid, &status, 0);
     }
 }
 
@@ -426,6 +410,8 @@ void tokenize(char *command)
             numArgs++;
         }
     }
+
+    args[numArgs] = NULL;
 }
 
 void jobs(int* backgroundIsActiveArray) {
